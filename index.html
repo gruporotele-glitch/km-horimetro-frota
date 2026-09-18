@@ -50,11 +50,11 @@
   }
 
   label{display:block; font-size:12px; color:var(--muted); margin:10px 0 4px;}
-  input[type="text"], input[type="number"]{
-    width:100%; padding:11px 12px; border:1px solid #ddd; border-radius:8px;
-    font-size:15px; background:#fff; color:var(--text);
+  input[type="text"], input[type="number"], select{
+    width:100%; padding:12px 12px; border:1px solid #ddd; border-radius:8px;
+    font-size:16px; background:#fff; color:var(--text);
   }
-  input:focus{outline:2px solid var(--accent); border-color:var(--accent);}
+  input:focus, select:focus{outline:2px solid var(--accent); border-color:var(--accent);}
 
   .capture-btn{
     width:100%; padding:13px; border-radius:10px; border:2px dashed #ccc;
@@ -68,14 +68,6 @@
     width:100%; max-height:220px; object-fit:contain; border-radius:8px;
     margin-top:10px; display:none; background:#111;
   }
-
-  .ocr-status{font-size:12px; color:var(--muted); margin-top:6px; display:none;}
-  .ocr-status.active{display:flex; align-items:center; gap:6px;}
-  .spinner{
-    width:12px; height:12px; border:2px solid #ddd; border-top-color:var(--accent);
-    border-radius:50%; animation:spin 0.8s linear infinite;
-  }
-  @keyframes spin{to{transform:rotate(360deg);}}
 
   .send-btn{
     width:100%; padding:15px; border:none; border-radius:12px;
@@ -112,36 +104,6 @@
   .pill-nunca{background:#f0f0f0; color:var(--muted);}
   .pill-emdia{background:#eafaee; color:var(--ok);}
   .prog-empty{font-size:13px; color:var(--muted); padding:6px 4px;}
-
-  .crop-overlay{
-    position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1000;
-    display:none; flex-direction:column;
-  }
-  .crop-overlay.show{display:flex;}
-  .crop-hint{color:#fff; text-align:center; font-size:13px; padding:12px 16px 6px;}
-  .crop-stage{
-    flex:1; display:flex; align-items:center; justify-content:center;
-    overflow:hidden; position:relative; padding:10px;
-  }
-  #cropWrap{position:relative;}
-  #cropCanvas{display:block; background:#000;}
-  .crop-box{
-    position:absolute; border:2px solid var(--accent);
-    box-shadow:0 0 0 2000px rgba(0,0,0,0.55);
-    touch-action:none;
-  }
-  .crop-handle{
-    position:absolute; width:28px; height:28px; background:var(--accent);
-    border-radius:50%; right:-14px; bottom:-14px; touch-action:none;
-    border:3px solid #fff;
-  }
-  .crop-actions{display:flex; gap:10px; padding:14px;}
-  .crop-actions button{
-    flex:1; padding:14px; border:none; border-radius:10px;
-    font-weight:700; font-size:15px; cursor:pointer;
-  }
-  .crop-cancel{background:#55555a; color:#fff;}
-  .crop-confirm{background:var(--accent); color:#3a3a3c;}
 </style>
 </head>
 <body>
@@ -169,33 +131,29 @@
   </div>
 
   <div class="card">
-    <h2><span class="step-num">2</span> Foto da placa</h2>
+    <h2><span class="step-num">2</span> Placa</h2>
+    <label for="placaSelect">Selecione a placa</label>
+    <select id="placaSelect">
+      <option value="">Selecione...</option>
+    </select>
+
+    <label style="margin-top:14px;">Foto da placa</label>
     <button type="button" class="capture-btn" id="btnPlaca">📷 Tirar foto da placa</button>
     <input type="file" id="filePlaca" accept="image/*" capture="environment">
     <img id="previewPlaca" class="preview">
-    <div class="ocr-status" id="ocrStatusPlaca"><span class="spinner"></span> Lendo a placa...</div>
-    <label for="placaTexto">Placa (confira / corrija)</label>
-    <input type="text" id="placaTexto" placeholder="ABC1D23" maxlength="8" style="text-transform:uppercase;">
   </div>
 
   <div class="card">
-    <h2><span class="step-num">3</span> Foto do KM</h2>
-    <button type="button" class="capture-btn" id="btnKm">📷 Tirar foto do KM</button>
-    <input type="file" id="fileKm" accept="image/*" capture="environment">
-    <img id="previewKm" class="preview">
-    <div class="ocr-status" id="ocrStatusKm"><span class="spinner"></span> Lendo o KM...</div>
-    <label for="kmTexto">KM (confira / corrija)</label>
-    <input type="text" id="kmTexto" placeholder="Ex: 123456">
-  </div>
+    <h2><span class="step-num">3</span> Foto do painel (KM e Horímetro)</h2>
+    <button type="button" class="capture-btn" id="btnPainel">📷 Tirar foto do painel</button>
+    <input type="file" id="filePainel" accept="image/*" capture="environment">
+    <img id="previewPainel" class="preview">
 
-  <div class="card">
-    <h2><span class="step-num">4</span> Foto do horímetro</h2>
-    <button type="button" class="capture-btn" id="btnHorimetro">📷 Tirar foto do horímetro</button>
-    <input type="file" id="fileHorimetro" accept="image/*" capture="environment">
-    <img id="previewHorimetro" class="preview">
-    <div class="ocr-status" id="ocrStatusHorimetro"><span class="spinner"></span> Lendo o horímetro...</div>
-    <label for="horimetroTexto">Horímetro (confira / corrija)</label>
-    <input type="text" id="horimetroTexto" placeholder="Ex: 4582.3">
+    <label for="kmTexto">KM</label>
+    <input type="text" id="kmTexto" inputmode="numeric" placeholder="Ex: 123456">
+
+    <label for="horimetroTexto">Horímetro</label>
+    <input type="text" id="horimetroTexto" inputmode="decimal" placeholder="Ex: 4582.3">
   </div>
 
   <button type="button" class="send-btn" id="btnEnviar">Enviar registro</button>
@@ -206,32 +164,30 @@
 
 <footer>Rotele · Grupo Rotele · Ambev MS</footer>
 
-<div class="crop-overlay" id="cropOverlay">
-  <div class="crop-hint">Ajuste o quadro laranja só em cima dos números/placa e toque em "Usar recorte"</div>
-  <div class="crop-stage" id="cropStage">
-    <div id="cropWrap">
-      <canvas id="cropCanvas"></canvas>
-      <div class="crop-box" id="cropBox">
-        <div class="crop-handle" id="cropHandle"></div>
-      </div>
-    </div>
-  </div>
-  <div class="crop-actions">
-    <button type="button" class="crop-cancel" id="cropCancelBtn">Cancelar</button>
-    <button type="button" class="crop-confirm" id="cropConfirmBtn">Usar recorte</button>
-  </div>
-</div>
-
-<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 // ============ CONFIGURAÇÃO ============
-// Cole aqui a URL do Web App publicado no Google Apps Script (Code.gs)
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxw_21JtdD6S00UImhN1xpvPli79EVAyZOtbZNf7eqSpEulMcuhkuMwYT8kgN5g0ghn/exec";
 // =======================================
 
+const PLACAS_ENTREGA = [
+  'SML8J65','SML8J74','SML8J75','SML8J78','SML8J80','SML9A16','SML9A75',
+  'SML8C96','SML8D61','SML8E21','SML8E26','SML8E30','SML8E32','SML8E33',
+  'SML8E35','SML8E47','SML8E48','SML8E49','SML8E51','SML8E52','SML8E53',
+  'SML8E54','SML8E63','SML8J63','SML8J64','SML8E09','SML8E13','SML8E18',
+  'SML8E97','SML8F01','SML9H33','UGW1D40','UGW1D44','UGW1D46','UGW1D49',
+  'UGW1D50','UGW1D51','UGW1D57','UGW1D58','UGW1D60','UGW1D63'
+].slice().sort();
+
+const placaSelect = document.getElementById('placaSelect');
+PLACAS_ENTREGA.forEach(p => {
+  const opt = document.createElement('option');
+  opt.value = p;
+  opt.textContent = p;
+  placaSelect.appendChild(opt);
+});
+
 let placaFotoBase64 = null;
-let kmFotoBase64 = null;
-let horimetroFotoBase64 = null;
+let painelFotoBase64 = null;
 
 const PILL_CLASS = {
   'Atrasado': 'pill-atrasado',
@@ -253,7 +209,6 @@ async function carregarProgramacao(){
       return;
     }
 
-    // mostra só quem não está "Em dia" primeiro; se todos estiverem em dia, mostra a lista completa
     const pendentes = data.placas.filter(p => p.status !== 'Em dia');
     const paraMostrar = pendentes.length ? pendentes : data.placas;
 
@@ -270,7 +225,7 @@ async function carregarProgramacao(){
         <div class="prog-pill ${PILL_CLASS[p.status] || 'pill-nunca'}">${p.status}</div>
       `;
       item.addEventListener('click', () => {
-        document.getElementById('placaTexto').value = p.placa;
+        placaSelect.value = p.placa;
         document.getElementById('manobrista').scrollIntoView({behavior:'smooth', block:'center'});
       });
       lista.appendChild(item);
@@ -293,261 +248,16 @@ carregarProgramacao();
 function fileToBase64(file){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
-    reader.onload = ()=> resolve(reader.result); // data:image/...;base64,....
+    reader.onload = ()=> resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-let sharedWorkerPromise = null;
-function getWorker(){
-  if(!sharedWorkerPromise){
-    sharedWorkerPromise = Tesseract.createWorker('eng');
-  }
-  return sharedWorkerPromise;
-}
-
-async function runOCR(dataUrl, statusEl, whitelist, psm){
-  statusEl.classList.add('active');
-  try{
-    const worker = await getWorker();
-    await worker.setParameters({
-      tessedit_char_whitelist: whitelist,
-      tessedit_pageseg_mode: psm || '6'
-    });
-    const { data } = await worker.recognize(dataUrl);
-    return data.text.replace(/\s+/g,' ').trim();
-  }catch(err){
-    console.error('Erro OCR:', err);
-    return '';
-  }finally{
-    statusEl.classList.remove('active');
-  }
-}
-
-// ===== Recorte manual + pré-processamento de imagem (melhora muito o OCR) =====
-
-function otsuThreshold(gray){
-  const hist = new Array(256).fill(0);
-  for(let i=0;i<gray.length;i++) hist[gray[i]]++;
-  const total = gray.length;
-  let sum = 0;
-  for(let t=0;t<256;t++) sum += t*hist[t];
-  let sumB=0, wB=0, maxVar=0, threshold=127;
-  for(let t=0;t<256;t++){
-    wB += hist[t];
-    if(wB===0) continue;
-    const wF = total-wB;
-    if(wF===0) break;
-    sumB += t*hist[t];
-    const mB = sumB/wB;
-    const mF = (sum-sumB)/wF;
-    const varBetween = wB*wF*(mB-mF)*(mB-mF);
-    if(varBetween>maxVar){ maxVar=varBetween; threshold=t; }
-  }
-  return threshold;
-}
-
-function preprocessCanvas(canvas){
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
-  const imgData = ctx.getImageData(0,0,w,h);
-  const d = imgData.data;
-  const n = w*h;
-
-  const gray = new Uint8ClampedArray(n);
-  let min=255, max=0;
-  for(let i=0,p=0; i<d.length; i+=4,p++){
-    const g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-    gray[p]=g;
-    if(g<min) min=g;
-    if(g>max) max=g;
-  }
-  const range = Math.max(1, max-min);
-  const stretched = new Uint8ClampedArray(n);
-  for(let p=0;p<n;p++){ stretched[p] = Math.round(((gray[p]-min)/range)*255); }
-
-  const threshold = otsuThreshold(stretched);
-  let bin = new Uint8ClampedArray(n);
-  for(let p=0;p<n;p++){ bin[p] = stretched[p] > threshold ? 255 : 0; }
-
-  // Padroniza polaridade: o texto (minoria de pixels) sempre vira preto sobre
-  // fundo branco, independente de o display original ser claro-no-escuro ou
-  // escuro-no-claro (placa).
-  let count255 = 0;
-  for(let p=0;p<n;p++){ if(bin[p]===255) count255++; }
-  const minorityIsWhite = count255 < (n - count255);
-  if(minorityIsWhite){
-    for(let p=0;p<n;p++){ bin[p] = 255 - bin[p]; }
-  }
-
-  // Remove ruído "sal e pimenta": um pixel isolado que discorda de quase
-  // todos os vizinhos vira a cor da maioria ao redor.
-  const clean = new Uint8ClampedArray(bin);
-  for(let y=1;y<h-1;y++){
-    for(let x=1;x<w-1;x++){
-      const idx = y*w+x;
-      const val = bin[idx];
-      let same = 0;
-      for(let dy=-1;dy<=1;dy++){
-        for(let dx=-1;dx<=1;dx++){
-          if(dx===0 && dy===0) continue;
-          if(bin[(y+dy)*w+(x+dx)] === val) same++;
-        }
-      }
-      if(same<=1){ clean[idx] = 255-val; }
-    }
-  }
-
-  for(let i=0,p=0; i<d.length; i+=4,p++){ d[i]=d[i+1]=d[i+2]=clean[p]; }
-  ctx.putImageData(imgData,0,0);
-}
-
-function cropAndPreprocess(img, sx, sy, sw, sh, scale){
-  const out = document.createElement('canvas');
-  out.width = Math.max(1, Math.round(sw*scale));
-  out.height = Math.max(1, Math.round(sh*scale));
-  const ctx = out.getContext('2d');
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, out.width, out.height);
-  preprocessCanvas(out);
-  return out.toDataURL('image/png');
-}
-
-let cropperImg = null, cropperDisplayScale = 1;
-let cropperTextField, cropperStatusEl, cropperWhitelist, cropperPsm, cropperPreviewEl, cropperBtnEl;
-let dragState = null;
-
-function initCropBoxDefault(w, h){
-  const box = document.getElementById('cropBox');
-  const bw = Math.min(w*0.7, w-16);
-  const bh = Math.min(h*0.32, h-16);
-  box.style.left = ((w-bw)/2)+'px';
-  box.style.top = ((h-bh)/2)+'px';
-  box.style.width = bw+'px';
-  box.style.height = bh+'px';
-}
-
-function openCropper(dataUrl, ctxObj){
-  cropperTextField = ctxObj.textField;
-  cropperStatusEl = ctxObj.statusEl;
-  cropperWhitelist = ctxObj.whitelist;
-  cropperPsm = ctxObj.psm;
-  cropperPreviewEl = ctxObj.previewEl;
-  cropperBtnEl = ctxObj.btnEl;
-
-  const overlay = document.getElementById('cropOverlay');
-  overlay.classList.add('show');
-  document.body.style.overflow = 'hidden';
-
-  const canvas = document.getElementById('cropCanvas');
-  const wrap = document.getElementById('cropWrap');
-  const stage = document.getElementById('cropStage');
-  const ctx = canvas.getContext('2d');
-
-  const img = new Image();
-  img.onload = () => {
-    const maxW = Math.max(200, stage.clientWidth - 20);
-    const maxH = Math.max(200, stage.clientHeight - 20);
-    let scale = Math.min(maxW/img.naturalWidth, maxH/img.naturalHeight);
-    if(!isFinite(scale) || scale<=0) scale = 1;
-    scale = Math.min(scale, 2);
-
-    canvas.width = Math.round(img.naturalWidth*scale);
-    canvas.height = Math.round(img.naturalHeight*scale);
-    canvas.style.width = canvas.width+'px';
-    canvas.style.height = canvas.height+'px';
-    wrap.style.width = canvas.width+'px';
-    wrap.style.height = canvas.height+'px';
-
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    cropperImg = img;
-    cropperDisplayScale = scale;
-    initCropBoxDefault(canvas.width, canvas.height);
-  };
-  img.src = dataUrl;
-}
-
-function closeCropper(){
-  document.getElementById('cropOverlay').classList.remove('show');
-  document.body.style.overflow = '';
-}
-
-document.getElementById('cropBox').addEventListener('pointerdown', (e)=>{
-  if(e.target.id === 'cropHandle') return;
-  const box = e.currentTarget;
-  dragState = { mode:'move', startX:e.clientX, startY:e.clientY,
-    startLeft: parseFloat(box.style.left), startTop: parseFloat(box.style.top) };
-  e.preventDefault();
-});
-
-document.getElementById('cropHandle').addEventListener('pointerdown', (e)=>{
-  const box = document.getElementById('cropBox');
-  dragState = { mode:'resize', startX:e.clientX, startY:e.clientY,
-    startW: parseFloat(box.style.width), startH: parseFloat(box.style.height) };
-  e.stopPropagation();
-  e.preventDefault();
-});
-
-document.addEventListener('pointermove', (e)=>{
-  if(!dragState) return;
-  const box = document.getElementById('cropBox');
-  const wrap = document.getElementById('cropWrap');
-  const wrapW = wrap.clientWidth, wrapH = wrap.clientHeight;
-  const dx = e.clientX - dragState.startX;
-  const dy = e.clientY - dragState.startY;
-
-  if(dragState.mode === 'move'){
-    const w = parseFloat(box.style.width), h = parseFloat(box.style.height);
-    let left = Math.max(0, Math.min(dragState.startLeft+dx, wrapW-w));
-    let top = Math.max(0, Math.min(dragState.startTop+dy, wrapH-h));
-    box.style.left = left+'px';
-    box.style.top = top+'px';
-  } else if(dragState.mode === 'resize'){
-    const left = parseFloat(box.style.left), top = parseFloat(box.style.top);
-    let w = Math.max(40, Math.min(dragState.startW+dx, wrapW-left));
-    let h = Math.max(30, Math.min(dragState.startH+dy, wrapH-top));
-    box.style.width = w+'px';
-    box.style.height = h+'px';
-  }
-});
-
-document.addEventListener('pointerup', ()=>{ dragState = null; });
-
-document.getElementById('cropCancelBtn').addEventListener('click', closeCropper);
-
-document.getElementById('cropConfirmBtn').addEventListener('click', async ()=>{
-  const box = document.getElementById('cropBox');
-  const boxLeft = parseFloat(box.style.left);
-  const boxTop = parseFloat(box.style.top);
-  const boxW = parseFloat(box.style.width);
-  const boxH = parseFloat(box.style.height);
-
-  const sx = boxLeft / cropperDisplayScale;
-  const sy = boxTop / cropperDisplayScale;
-  const sw = boxW / cropperDisplayScale;
-  const sh = boxH / cropperDisplayScale;
-
-  const processedDataUrl = cropAndPreprocess(cropperImg, sx, sy, sw, sh, 3);
-
-  closeCropper();
-
-  cropperPreviewEl.src = processedDataUrl;
-  cropperPreviewEl.style.display = 'block';
-  cropperBtnEl.textContent = '📷 Foto capturada (toque para repetir)';
-  cropperBtnEl.classList.add('has-photo');
-
-  const ocrText = await runOCR(processedDataUrl, cropperStatusEl, cropperWhitelist, cropperPsm);
-  if(ocrText){ cropperTextField.value = ocrText; }
-});
-
-function setupCapture(btnId, fileId, previewId, statusId, textFieldId, whitelist, kind, psm){
+function setupCapture(btnId, fileId, previewId, kind){
   const btn = document.getElementById(btnId);
   const fileInput = document.getElementById(fileId);
   const preview = document.getElementById(previewId);
-  const status = document.getElementById(statusId);
-  const textField = document.getElementById(textFieldId);
 
   btn.addEventListener('click', ()=> fileInput.click());
 
@@ -556,32 +266,24 @@ function setupCapture(btnId, fileId, previewId, statusId, textFieldId, whitelist
     if(!file) return;
 
     const dataUrl = await fileToBase64(file);
+    preview.src = dataUrl;
+    preview.style.display = 'block';
+    btn.textContent = '📷 Foto capturada (toque para repetir)';
+    btn.classList.add('has-photo');
 
-    // guarda a foto ORIGINAL (sem recorte) para o registro/auditoria
     if(kind === 'placa'){ placaFotoBase64 = dataUrl; }
-    else if(kind === 'km'){ kmFotoBase64 = dataUrl; }
-    else if(kind === 'horimetro'){ horimetroFotoBase64 = dataUrl; }
+    else if(kind === 'painel'){ painelFotoBase64 = dataUrl; }
 
-    openCropper(dataUrl, { textField, statusEl: status, whitelist, psm, previewEl: preview, btnEl: btn });
-    // reseta o input para permitir tirar a mesma foto de novo depois
     fileInput.value = '';
   });
 }
 
-setupCapture('btnPlaca','filePlaca','previewPlaca','ocrStatusPlaca','placaTexto',
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 'placa', '7');
-setupCapture('btnKm','fileKm','previewKm','ocrStatusKm','kmTexto',
-  '0123456789', 'km', '6');
-setupCapture('btnHorimetro','fileHorimetro','previewHorimetro','ocrStatusHorimetro','horimetroTexto',
-  '0123456789., ', 'horimetro', '6');
-
-document.getElementById('placaTexto').addEventListener('input', function(){
-  this.value = this.value.toUpperCase();
-});
+setupCapture('btnPlaca','filePlaca','previewPlaca','placa');
+setupCapture('btnPainel','filePainel','previewPainel','painel');
 
 document.getElementById('btnEnviar').addEventListener('click', async ()=>{
   const manobrista = document.getElementById('manobrista').value.trim();
-  const placa = document.getElementById('placaTexto').value.trim();
+  const placa = placaSelect.value;
   const km = document.getElementById('kmTexto').value.trim();
   const horimetro = document.getElementById('horimetroTexto').value.trim();
   const msgOk = document.getElementById('msgOk');
@@ -591,8 +293,8 @@ document.getElementById('btnEnviar').addEventListener('click', async ()=>{
   msgOk.classList.remove('show');
   msgErr.classList.remove('show');
 
-  if(!manobrista || !placa || !km || !horimetro || !placaFotoBase64 || !kmFotoBase64 || !horimetroFotoBase64){
-    msgErr.textContent = '⚠️ Preencha o nome, tire as três fotos e confira os campos.';
+  if(!manobrista || !placa || !km || !horimetro || !placaFotoBase64 || !painelFotoBase64){
+    msgErr.textContent = '⚠️ Preencha o nome, selecione a placa, tire as duas fotos e preencha KM e Horímetro.';
     msgErr.classList.add('show');
     return;
   }
@@ -603,13 +305,11 @@ document.getElementById('btnEnviar').addEventListener('click', async ()=>{
   const payload = {
     manobrista, placa, km, horimetro,
     fotoPlaca: placaFotoBase64,
-    fotoKm: kmFotoBase64,
-    fotoHorimetro: horimetroFotoBase64,
+    fotoPainel: painelFotoBase64,
     dataHora: new Date().toISOString()
   };
 
   try{
-    // Envio como text/plain para evitar preflight CORS no Apps Script
     const resp = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: {'Content-Type':'text/plain;charset=utf-8'},
@@ -618,21 +318,19 @@ document.getElementById('btnEnviar').addEventListener('click', async ()=>{
     const data = await resp.json();
     if(data.status === 'ok'){
       msgOk.classList.add('show');
-      // limpa o formulário
       document.getElementById('manobrista').value = '';
-      document.getElementById('placaTexto').value = '';
+      placaSelect.value = '';
       document.getElementById('kmTexto').value = '';
       document.getElementById('horimetroTexto').value = '';
-      ['previewPlaca','previewKm','previewHorimetro'].forEach(id=>{
+      ['previewPlaca','previewPainel'].forEach(id=>{
         document.getElementById(id).style.display='none';
       });
       document.getElementById('btnPlaca').textContent = '📷 Tirar foto da placa';
       document.getElementById('btnPlaca').classList.remove('has-photo');
-      document.getElementById('btnKm').textContent = '📷 Tirar foto do KM';
-      document.getElementById('btnKm').classList.remove('has-photo');
-      document.getElementById('btnHorimetro').textContent = '📷 Tirar foto do horímetro';
-      document.getElementById('btnHorimetro').classList.remove('has-photo');
-      placaFotoBase64 = null; kmFotoBase64 = null; horimetroFotoBase64 = null;
+      document.getElementById('btnPainel').textContent = '📷 Tirar foto do painel';
+      document.getElementById('btnPainel').classList.remove('has-photo');
+      placaFotoBase64 = null; painelFotoBase64 = null;
+      carregarProgramacao();
     }else{
       throw new Error(data.message || 'erro desconhecido');
     }
