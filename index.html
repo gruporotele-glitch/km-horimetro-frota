@@ -125,17 +125,10 @@
   </div>
 
   <div class="card">
-    <h2><span class="step-num">1</span> Identificação</h2>
-    <label for="manobrista">Nome do manobrista</label>
-    <input type="text" id="manobrista" placeholder="Digite seu nome" autocomplete="name">
-  </div>
-
-  <div class="card">
-    <h2><span class="step-num">2</span> Placa</h2>
-    <label for="placaSelect">Selecione a placa</label>
-    <select id="placaSelect">
-      <option value="">Selecione...</option>
-    </select>
+    <h2><span class="step-num">1</span> Placa</h2>
+    <label for="placaInput">Digite ou selecione a placa</label>
+    <input type="text" id="placaInput" list="placasList" placeholder="Comece a digitar..." autocomplete="off" style="text-transform:uppercase;">
+    <datalist id="placasList"></datalist>
 
     <label style="margin-top:14px;">Foto da placa</label>
     <button type="button" class="capture-btn" id="btnPlaca">📷 Tirar foto da placa</button>
@@ -144,7 +137,7 @@
   </div>
 
   <div class="card">
-    <h2><span class="step-num">3</span> Foto do painel (KM e Horímetro)</h2>
+    <h2><span class="step-num">2</span> Foto do painel (KM e Horímetro)</h2>
     <button type="button" class="capture-btn" id="btnPainel">📷 Tirar foto do painel</button>
     <input type="file" id="filePainel" accept="image/*" capture="environment">
     <img id="previewPainel" class="preview">
@@ -178,12 +171,15 @@ const PLACAS_ENTREGA = [
   'UGW1D50','UGW1D51','UGW1D57','UGW1D58','UGW1D60','UGW1D63'
 ].slice().sort();
 
-const placaSelect = document.getElementById('placaSelect');
+const placaInput = document.getElementById('placaInput');
+const placasList = document.getElementById('placasList');
 PLACAS_ENTREGA.forEach(p => {
   const opt = document.createElement('option');
   opt.value = p;
-  opt.textContent = p;
-  placaSelect.appendChild(opt);
+  placasList.appendChild(opt);
+});
+placaInput.addEventListener('input', function(){
+  this.value = this.value.toUpperCase();
 });
 
 let placaFotoBase64 = null;
@@ -225,8 +221,8 @@ async function carregarProgramacao(){
         <div class="prog-pill ${PILL_CLASS[p.status] || 'pill-nunca'}">${p.status}</div>
       `;
       item.addEventListener('click', () => {
-        placaSelect.value = p.placa;
-        document.getElementById('manobrista').scrollIntoView({behavior:'smooth', block:'center'});
+        placaInput.value = p.placa;
+        document.getElementById('cardProgramacao').scrollIntoView({behavior:'smooth', block:'start'});
       });
       lista.appendChild(item);
     });
@@ -282,8 +278,7 @@ setupCapture('btnPlaca','filePlaca','previewPlaca','placa');
 setupCapture('btnPainel','filePainel','previewPainel','painel');
 
 document.getElementById('btnEnviar').addEventListener('click', async ()=>{
-  const manobrista = document.getElementById('manobrista').value.trim();
-  const placa = placaSelect.value;
+  const placa = placaInput.value.trim().toUpperCase();
   const km = document.getElementById('kmTexto').value.trim();
   const horimetro = document.getElementById('horimetroTexto').value.trim();
   const msgOk = document.getElementById('msgOk');
@@ -293,8 +288,14 @@ document.getElementById('btnEnviar').addEventListener('click', async ()=>{
   msgOk.classList.remove('show');
   msgErr.classList.remove('show');
 
-  if(!manobrista || !placa || !km || !horimetro || !placaFotoBase64 || !painelFotoBase64){
-    msgErr.textContent = '⚠️ Preencha o nome, selecione a placa, tire as duas fotos e preencha KM e Horímetro.';
+  if(!placa || !PLACAS_ENTREGA.includes(placa)){
+    msgErr.textContent = '⚠️ Selecione uma placa válida da lista.';
+    msgErr.classList.add('show');
+    return;
+  }
+
+  if(!km || !horimetro || !placaFotoBase64 || !painelFotoBase64){
+    msgErr.textContent = '⚠️ Tire as duas fotos e preencha KM e Horímetro.';
     msgErr.classList.add('show');
     return;
   }
@@ -303,7 +304,7 @@ document.getElementById('btnEnviar').addEventListener('click', async ()=>{
   btn.textContent = 'Enviando...';
 
   const payload = {
-    manobrista, placa, km, horimetro,
+    placa, km, horimetro,
     fotoPlaca: placaFotoBase64,
     fotoPainel: painelFotoBase64,
     dataHora: new Date().toISOString()
@@ -318,8 +319,7 @@ document.getElementById('btnEnviar').addEventListener('click', async ()=>{
     const data = await resp.json();
     if(data.status === 'ok'){
       msgOk.classList.add('show');
-      document.getElementById('manobrista').value = '';
-      placaSelect.value = '';
+      placaInput.value = '';
       document.getElementById('kmTexto').value = '';
       document.getElementById('horimetroTexto').value = '';
       ['previewPlaca','previewPainel'].forEach(id=>{
