@@ -246,6 +246,7 @@ async function carregarProgramacao(){
       item.addEventListener('click', () => {
         placaInput.value = p.placa;
         document.getElementById('telaProgramacao').style.display = 'none';
+        document.getElementById('filePlaca').click();
       });
       lista.appendChild(item);
     });
