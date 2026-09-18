@@ -1,0 +1,25 @@
+{
+  "name": "Registro KM/Hora - Frota Rotele",
+  "short_name": "KM/Hora Frota",
+  "description": "Registro de KM e hora dos caminhões via foto, com OCR e envio para planilha",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f4f5",
+  "theme_color": "#3a3a3c",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
