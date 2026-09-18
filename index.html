@@ -112,6 +112,36 @@
   .pill-nunca{background:#f0f0f0; color:var(--muted);}
   .pill-emdia{background:#eafaee; color:var(--ok);}
   .prog-empty{font-size:13px; color:var(--muted); padding:6px 4px;}
+
+  .crop-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1000;
+    display:none; flex-direction:column;
+  }
+  .crop-overlay.show{display:flex;}
+  .crop-hint{color:#fff; text-align:center; font-size:13px; padding:12px 16px 6px;}
+  .crop-stage{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; position:relative; padding:10px;
+  }
+  #cropWrap{position:relative;}
+  #cropCanvas{display:block; background:#000;}
+  .crop-box{
+    position:absolute; border:2px solid var(--accent);
+    box-shadow:0 0 0 2000px rgba(0,0,0,0.55);
+    touch-action:none;
+  }
+  .crop-handle{
+    position:absolute; width:28px; height:28px; background:var(--accent);
+    border-radius:50%; right:-14px; bottom:-14px; touch-action:none;
+    border:3px solid #fff;
+  }
+  .crop-actions{display:flex; gap:10px; padding:14px;}
+  .crop-actions button{
+    flex:1; padding:14px; border:none; border-radius:10px;
+    font-weight:700; font-size:15px; cursor:pointer;
+  }
+  .crop-cancel{background:#55555a; color:#fff;}
+  .crop-confirm{background:var(--accent); color:#3a3a3c;}
 </style>
 </head>
 <body>
@@ -175,6 +205,22 @@
 </main>
 
 <footer>Rotele · Grupo Rotele · Ambev MS</footer>
+
+<div class="crop-overlay" id="cropOverlay">
+  <div class="crop-hint">Ajuste o quadro laranja só em cima dos números/placa e toque em "Usar recorte"</div>
+  <div class="crop-stage" id="cropStage">
+    <div id="cropWrap">
+      <canvas id="cropCanvas"></canvas>
+      <div class="crop-box" id="cropBox">
+        <div class="crop-handle" id="cropHandle"></div>
+      </div>
+    </div>
+  </div>
+  <div class="crop-actions">
+    <button type="button" class="crop-cancel" id="cropCancelBtn">Cancelar</button>
+    <button type="button" class="crop-confirm" id="cropConfirmBtn">Usar recorte</button>
+  </div>
+</div>
 
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
@@ -253,11 +299,12 @@ function fileToBase64(file){
   });
 }
 
-async function runOCR(dataUrl, statusEl, whitelist){
+async function runOCR(dataUrl, statusEl, whitelist, psm){
   statusEl.classList.add('active');
   try{
     const result = await Tesseract.recognize(dataUrl, 'eng', {
-      tessedit_char_whitelist: whitelist
+      tessedit_char_whitelist: whitelist,
+      tessedit_pageseg_mode: psm || '7'
     });
     return result.data.text.replace(/\s+/g,' ').trim();
   }catch(err){
@@ -268,7 +315,170 @@ async function runOCR(dataUrl, statusEl, whitelist){
   }
 }
 
-function setupCapture(btnId, fileId, previewId, statusId, textFieldId, whitelist, kind){
+// ===== Recorte manual + pré-processamento de imagem (melhora muito o OCR) =====
+
+function preprocessCanvas(canvas){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const imgData = ctx.getImageData(0,0,w,h);
+  const d = imgData.data;
+  let min=255, max=0;
+  const gray = new Uint8ClampedArray(w*h);
+  for(let i=0, p=0; i<d.length; i+=4, p++){
+    const g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    gray[p] = g;
+    if(g<min) min=g;
+    if(g>max) max=g;
+  }
+  const range = Math.max(1, max-min);
+  for(let i=0, p=0; i<d.length; i+=4, p++){
+    const stretched = ((gray[p]-min)/range)*255;
+    const bin = stretched > 130 ? 255 : 0;
+    d[i]=d[i+1]=d[i+2]=bin;
+  }
+  ctx.putImageData(imgData,0,0);
+}
+
+function cropAndPreprocess(img, sx, sy, sw, sh, scale){
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(sw*scale));
+  out.height = Math.max(1, Math.round(sh*scale));
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, out.width, out.height);
+  preprocessCanvas(out);
+  return out.toDataURL('image/png');
+}
+
+let cropperImg = null, cropperDisplayScale = 1;
+let cropperTextField, cropperStatusEl, cropperWhitelist, cropperPsm, cropperPreviewEl, cropperBtnEl;
+let dragState = null;
+
+function initCropBoxDefault(w, h){
+  const box = document.getElementById('cropBox');
+  const bw = Math.min(w*0.7, w-16);
+  const bh = Math.min(h*0.32, h-16);
+  box.style.left = ((w-bw)/2)+'px';
+  box.style.top = ((h-bh)/2)+'px';
+  box.style.width = bw+'px';
+  box.style.height = bh+'px';
+}
+
+function openCropper(dataUrl, ctxObj){
+  cropperTextField = ctxObj.textField;
+  cropperStatusEl = ctxObj.statusEl;
+  cropperWhitelist = ctxObj.whitelist;
+  cropperPsm = ctxObj.psm;
+  cropperPreviewEl = ctxObj.previewEl;
+  cropperBtnEl = ctxObj.btnEl;
+
+  const overlay = document.getElementById('cropOverlay');
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+
+  const canvas = document.getElementById('cropCanvas');
+  const wrap = document.getElementById('cropWrap');
+  const stage = document.getElementById('cropStage');
+  const ctx = canvas.getContext('2d');
+
+  const img = new Image();
+  img.onload = () => {
+    const maxW = Math.max(200, stage.clientWidth - 20);
+    const maxH = Math.max(200, stage.clientHeight - 20);
+    let scale = Math.min(maxW/img.naturalWidth, maxH/img.naturalHeight);
+    if(!isFinite(scale) || scale<=0) scale = 1;
+    scale = Math.min(scale, 2);
+
+    canvas.width = Math.round(img.naturalWidth*scale);
+    canvas.height = Math.round(img.naturalHeight*scale);
+    canvas.style.width = canvas.width+'px';
+    canvas.style.height = canvas.height+'px';
+    wrap.style.width = canvas.width+'px';
+    wrap.style.height = canvas.height+'px';
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    cropperImg = img;
+    cropperDisplayScale = scale;
+    initCropBoxDefault(canvas.width, canvas.height);
+  };
+  img.src = dataUrl;
+}
+
+function closeCropper(){
+  document.getElementById('cropOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('cropBox').addEventListener('pointerdown', (e)=>{
+  if(e.target.id === 'cropHandle') return;
+  const box = e.currentTarget;
+  dragState = { mode:'move', startX:e.clientX, startY:e.clientY,
+    startLeft: parseFloat(box.style.left), startTop: parseFloat(box.style.top) };
+  e.preventDefault();
+});
+
+document.getElementById('cropHandle').addEventListener('pointerdown', (e)=>{
+  const box = document.getElementById('cropBox');
+  dragState = { mode:'resize', startX:e.clientX, startY:e.clientY,
+    startW: parseFloat(box.style.width), startH: parseFloat(box.style.height) };
+  e.stopPropagation();
+  e.preventDefault();
+});
+
+document.addEventListener('pointermove', (e)=>{
+  if(!dragState) return;
+  const box = document.getElementById('cropBox');
+  const wrap = document.getElementById('cropWrap');
+  const wrapW = wrap.clientWidth, wrapH = wrap.clientHeight;
+  const dx = e.clientX - dragState.startX;
+  const dy = e.clientY - dragState.startY;
+
+  if(dragState.mode === 'move'){
+    const w = parseFloat(box.style.width), h = parseFloat(box.style.height);
+    let left = Math.max(0, Math.min(dragState.startLeft+dx, wrapW-w));
+    let top = Math.max(0, Math.min(dragState.startTop+dy, wrapH-h));
+    box.style.left = left+'px';
+    box.style.top = top+'px';
+  } else if(dragState.mode === 'resize'){
+    const left = parseFloat(box.style.left), top = parseFloat(box.style.top);
+    let w = Math.max(40, Math.min(dragState.startW+dx, wrapW-left));
+    let h = Math.max(30, Math.min(dragState.startH+dy, wrapH-top));
+    box.style.width = w+'px';
+    box.style.height = h+'px';
+  }
+});
+
+document.addEventListener('pointerup', ()=>{ dragState = null; });
+
+document.getElementById('cropCancelBtn').addEventListener('click', closeCropper);
+
+document.getElementById('cropConfirmBtn').addEventListener('click', async ()=>{
+  const box = document.getElementById('cropBox');
+  const boxLeft = parseFloat(box.style.left);
+  const boxTop = parseFloat(box.style.top);
+  const boxW = parseFloat(box.style.width);
+  const boxH = parseFloat(box.style.height);
+
+  const sx = boxLeft / cropperDisplayScale;
+  const sy = boxTop / cropperDisplayScale;
+  const sw = boxW / cropperDisplayScale;
+  const sh = boxH / cropperDisplayScale;
+
+  const processedDataUrl = cropAndPreprocess(cropperImg, sx, sy, sw, sh, 3);
+
+  closeCropper();
+
+  cropperPreviewEl.src = processedDataUrl;
+  cropperPreviewEl.style.display = 'block';
+  cropperBtnEl.textContent = '📷 Foto capturada (toque para repetir)';
+  cropperBtnEl.classList.add('has-photo');
+
+  const ocrText = await runOCR(processedDataUrl, cropperStatusEl, cropperWhitelist, cropperPsm);
+  if(ocrText){ cropperTextField.value = ocrText; }
+});
+
+function setupCapture(btnId, fileId, previewId, statusId, textFieldId, whitelist, kind, psm){
   const btn = document.getElementById(btnId);
   const fileInput = document.getElementById(fileId);
   const preview = document.getElementById(previewId);
@@ -282,26 +492,24 @@ function setupCapture(btnId, fileId, previewId, statusId, textFieldId, whitelist
     if(!file) return;
 
     const dataUrl = await fileToBase64(file);
-    preview.src = dataUrl;
-    preview.style.display = 'block';
-    btn.textContent = '📷 Foto capturada (toque para repetir)';
-    btn.classList.add('has-photo');
 
+    // guarda a foto ORIGINAL (sem recorte) para o registro/auditoria
     if(kind === 'placa'){ placaFotoBase64 = dataUrl; }
     else if(kind === 'km'){ kmFotoBase64 = dataUrl; }
     else if(kind === 'horimetro'){ horimetroFotoBase64 = dataUrl; }
 
-    const ocrText = await runOCR(dataUrl, status, whitelist);
-    if(ocrText){ textField.value = ocrText; }
+    openCropper(dataUrl, { textField, statusEl: status, whitelist, psm, previewEl: preview, btnEl: btn });
+    // reseta o input para permitir tirar a mesma foto de novo depois
+    fileInput.value = '';
   });
 }
 
 setupCapture('btnPlaca','filePlaca','previewPlaca','ocrStatusPlaca','placaTexto',
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 'placa');
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 'placa', '8');
 setupCapture('btnKm','fileKm','previewKm','ocrStatusKm','kmTexto',
-  '0123456789', 'km');
+  '0123456789', 'km', '7');
 setupCapture('btnHorimetro','fileHorimetro','previewHorimetro','ocrStatusHorimetro','horimetroTexto',
-  '0123456789., ', 'horimetro');
+  '0123456789., ', 'horimetro', '7');
 
 document.getElementById('placaTexto').addEventListener('input', function(){
   this.value = this.value.toUpperCase();
