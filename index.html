@@ -116,13 +116,12 @@
   </div>
 </header>
 
-<main>
+<button type="button" id="btnAbrirProgramacao" style="width:100%; border:none; background:var(--header); color:#fff; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; font-size:13px; cursor:pointer;">
+  <span id="progResumoTexto">📋 Carregando programação...</span>
+  <span style="opacity:0.7;">›</span>
+</button>
 
-  <div class="card" id="cardProgramacao">
-    <h2>📋 Programação desta semana</h2>
-    <div id="programacaoLoading" style="font-size:13px; color:var(--muted);">Carregando...</div>
-    <div id="programacaoLista"></div>
-  </div>
+<main>
 
   <div class="card">
     <h2><span class="step-num">1</span> Placa</h2>
@@ -156,6 +155,19 @@
 </main>
 
 <footer>Rotele · Grupo Rotele · Ambev MS</footer>
+
+<div id="telaProgramacao" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:900; overflow-y:auto;">
+  <div style="background:var(--header); color:#fff; padding:16px; display:flex; align-items:center; gap:12px; position:sticky; top:0;">
+    <button type="button" id="btnFecharProgramacao" style="background:none; border:none; color:#fff; font-size:20px; cursor:pointer; padding:0 8px 0 0;">‹</button>
+    <span style="font-size:15px; font-weight:600;">📋 Programação desta semana</span>
+  </div>
+  <div style="max-width:520px; margin:0 auto; padding:16px;">
+    <div class="card">
+      <div id="programacaoLoading" style="font-size:13px; color:var(--muted);">Carregando...</div>
+      <div id="programacaoLista"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ============ CONFIGURAÇÃO ============
@@ -195,6 +207,7 @@ const PILL_CLASS = {
 async function carregarProgramacao(){
   const loading = document.getElementById('programacaoLoading');
   const lista = document.getElementById('programacaoLista');
+  const resumo = document.getElementById('progResumoTexto');
   try{
     const resp = await fetch(APPS_SCRIPT_URL, { method: 'GET' });
     const data = await resp.json();
@@ -202,11 +215,21 @@ async function carregarProgramacao(){
 
     if(data.status !== 'ok' || !data.placas || !data.placas.length){
       lista.innerHTML = '<div class="prog-empty">Nenhuma placa cadastrada na programação.</div>';
+      resumo.textContent = '📋 Ver programação da semana';
       return;
     }
 
     const pendentes = data.placas.filter(p => p.status !== 'Em dia');
+    const atrasados = data.placas.filter(p => p.status === 'Atrasado').length;
     const paraMostrar = pendentes.length ? pendentes : data.placas;
+
+    if(!pendentes.length){
+      resumo.textContent = '✅ Toda a frota em dia — ver programação';
+    } else if(atrasados > 0){
+      resumo.textContent = `📋 ${pendentes.length} pendente(s), ${atrasados} atrasado(s) — toque para ver`;
+    } else {
+      resumo.textContent = `📋 ${pendentes.length} pendente(s) esta semana — toque para ver`;
+    }
 
     lista.innerHTML = '';
     paraMostrar.forEach(p => {
@@ -222,7 +245,7 @@ async function carregarProgramacao(){
       `;
       item.addEventListener('click', () => {
         placaInput.value = p.placa;
-        document.getElementById('cardProgramacao').scrollIntoView({behavior:'smooth', block:'start'});
+        document.getElementById('telaProgramacao').style.display = 'none';
       });
       lista.appendChild(item);
     });
@@ -236,10 +259,18 @@ async function carregarProgramacao(){
   }catch(err){
     console.error(err);
     loading.textContent = 'Não foi possível carregar a programação agora.';
+    resumo.textContent = '📋 Ver programação da semana';
   }
 }
 
 carregarProgramacao();
+
+document.getElementById('btnAbrirProgramacao').addEventListener('click', ()=>{
+  document.getElementById('telaProgramacao').style.display = 'block';
+});
+document.getElementById('btnFecharProgramacao').addEventListener('click', ()=>{
+  document.getElementById('telaProgramacao').style.display = 'none';
+});
 
 function fileToBase64(file){
   return new Promise((resolve, reject)=>{
