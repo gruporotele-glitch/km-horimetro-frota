@@ -299,14 +299,24 @@ function fileToBase64(file){
   });
 }
 
+let sharedWorkerPromise = null;
+function getWorker(){
+  if(!sharedWorkerPromise){
+    sharedWorkerPromise = Tesseract.createWorker('eng');
+  }
+  return sharedWorkerPromise;
+}
+
 async function runOCR(dataUrl, statusEl, whitelist, psm){
   statusEl.classList.add('active');
   try{
-    const result = await Tesseract.recognize(dataUrl, 'eng', {
+    const worker = await getWorker();
+    await worker.setParameters({
       tessedit_char_whitelist: whitelist,
-      tessedit_pageseg_mode: psm || '7'
+      tessedit_pageseg_mode: psm || '6'
     });
-    return result.data.text.replace(/\s+/g,' ').trim();
+    const { data } = await worker.recognize(dataUrl);
+    return data.text.replace(/\s+/g,' ').trim();
   }catch(err){
     console.error('Erro OCR:', err);
     return '';
@@ -317,25 +327,79 @@ async function runOCR(dataUrl, statusEl, whitelist, psm){
 
 // ===== Recorte manual + pré-processamento de imagem (melhora muito o OCR) =====
 
+function otsuThreshold(gray){
+  const hist = new Array(256).fill(0);
+  for(let i=0;i<gray.length;i++) hist[gray[i]]++;
+  const total = gray.length;
+  let sum = 0;
+  for(let t=0;t<256;t++) sum += t*hist[t];
+  let sumB=0, wB=0, maxVar=0, threshold=127;
+  for(let t=0;t<256;t++){
+    wB += hist[t];
+    if(wB===0) continue;
+    const wF = total-wB;
+    if(wF===0) break;
+    sumB += t*hist[t];
+    const mB = sumB/wB;
+    const mF = (sum-sumB)/wF;
+    const varBetween = wB*wF*(mB-mF)*(mB-mF);
+    if(varBetween>maxVar){ maxVar=varBetween; threshold=t; }
+  }
+  return threshold;
+}
+
 function preprocessCanvas(canvas){
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
   const imgData = ctx.getImageData(0,0,w,h);
   const d = imgData.data;
+  const n = w*h;
+
+  const gray = new Uint8ClampedArray(n);
   let min=255, max=0;
-  const gray = new Uint8ClampedArray(w*h);
-  for(let i=0, p=0; i<d.length; i+=4, p++){
+  for(let i=0,p=0; i<d.length; i+=4,p++){
     const g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-    gray[p] = g;
+    gray[p]=g;
     if(g<min) min=g;
     if(g>max) max=g;
   }
   const range = Math.max(1, max-min);
-  for(let i=0, p=0; i<d.length; i+=4, p++){
-    const stretched = ((gray[p]-min)/range)*255;
-    const bin = stretched > 130 ? 255 : 0;
-    d[i]=d[i+1]=d[i+2]=bin;
+  const stretched = new Uint8ClampedArray(n);
+  for(let p=0;p<n;p++){ stretched[p] = Math.round(((gray[p]-min)/range)*255); }
+
+  const threshold = otsuThreshold(stretched);
+  let bin = new Uint8ClampedArray(n);
+  for(let p=0;p<n;p++){ bin[p] = stretched[p] > threshold ? 255 : 0; }
+
+  // Padroniza polaridade: o texto (minoria de pixels) sempre vira preto sobre
+  // fundo branco, independente de o display original ser claro-no-escuro ou
+  // escuro-no-claro (placa).
+  let count255 = 0;
+  for(let p=0;p<n;p++){ if(bin[p]===255) count255++; }
+  const minorityIsWhite = count255 < (n - count255);
+  if(minorityIsWhite){
+    for(let p=0;p<n;p++){ bin[p] = 255 - bin[p]; }
   }
+
+  // Remove ruído "sal e pimenta": um pixel isolado que discorda de quase
+  // todos os vizinhos vira a cor da maioria ao redor.
+  const clean = new Uint8ClampedArray(bin);
+  for(let y=1;y<h-1;y++){
+    for(let x=1;x<w-1;x++){
+      const idx = y*w+x;
+      const val = bin[idx];
+      let same = 0;
+      for(let dy=-1;dy<=1;dy++){
+        for(let dx=-1;dx<=1;dx++){
+          if(dx===0 && dy===0) continue;
+          if(bin[(y+dy)*w+(x+dx)] === val) same++;
+        }
+      }
+      if(same<=1){ clean[idx] = 255-val; }
+    }
+  }
+
+  for(let i=0,p=0; i<d.length; i+=4,p++){ d[i]=d[i+1]=d[i+2]=clean[p]; }
   ctx.putImageData(imgData,0,0);
 }
 
@@ -505,11 +569,11 @@ function setupCapture(btnId, fileId, previewId, statusId, textFieldId, whitelist
 }
 
 setupCapture('btnPlaca','filePlaca','previewPlaca','ocrStatusPlaca','placaTexto',
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 'placa', '8');
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 'placa', '7');
 setupCapture('btnKm','fileKm','previewKm','ocrStatusKm','kmTexto',
-  '0123456789', 'km', '7');
+  '0123456789', 'km', '6');
 setupCapture('btnHorimetro','fileHorimetro','previewHorimetro','ocrStatusHorimetro','horimetroTexto',
-  '0123456789., ', 'horimetro', '7');
+  '0123456789., ', 'horimetro', '6');
 
 document.getElementById('placaTexto').addEventListener('input', function(){
   this.value = this.value.toUpperCase();
